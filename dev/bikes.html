@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bike viewer (dev)</title>
+<style>
+  html, body { margin: 0; background: #111; color: #ccc; font: 12px monospace; }
+  canvas { width: 1152px; height: 648px; image-rendering: pixelated; display: block; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="info">keys: 1-6 style · arrows rotate/zoom · D dither · S snap · R rider</div>
+<script src="../js/core.js"></script>
+<script src="../js/font.js"></script>
+<script src="../js/gl.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/bikes.js"></script>
+<script>
+  const M = SR.M, GL = SR.GL;
+  const cv = document.getElementById('gl');
+  GL.init(cv);
+  GL.resize(384 * (+new URLSearchParams(location.search).get('res') || 1), 216 * (+new URLSearchParams(location.search).get('res') || 1));
+  const styles = Object.keys(SR.BIKE_STYLES);
+  let si = +(new URLSearchParams(location.search).get('s') || 0), yaw = 2.4, dist = 3.2, pitch = 0.25, showRider = true, spin = 0;
+  const floor = new GL.MB();
+  for (let i = -6; i < 6; i++) for (let j = -6; j < 6; j++) floor.quad([i, 0, j], [i + 1, 0, j], [i + 1, 0, j + 1], [i, 0, j + 1], (i + j) & 1 ? [0.2, 0.18, 0.3] : [0.3, 0.26, 0.42], 0);
+  const floorMesh = floor.build();
+  const env = { sunDir: M.norm([0.5, 0.8, 0.3]), sunCol: [0.9, 0.85, 0.8], skyAmb: [0.45, 0.48, 0.6], gndAmb: [0.25, 0.22, 0.2], fogCol: [0.1, 0.08, 0.16], fogNear: 30, fogFar: 60 };
+  const paints = SR.BIKES.map((b) => [M.rgb(b.paint), M.rgb(b.paint2)]);
+  addEventListener('keydown', (e) => {
+    if (e.key >= '1' && e.key <= '6') si = +e.key - 1;
+    if (e.key === 'ArrowLeft') yaw -= 0.2;
+    if (e.key === 'ArrowRight') yaw += 0.2;
+    if (e.key === 'ArrowUp') dist = Math.max(1, dist - 0.3);
+    if (e.key === 'ArrowDown') dist += 0.3;
+    if (e.key === 'd') GL.dither = !GL.dither;
+    if (e.key === 's') GL.snap = !GL.snap;
+    if (e.key === 'r') showRider = !showRider;
+  });
+  const mm = M.m4(), wm = M.m4(), loc = M.m4();
+  window.view = (s, y, d, p) => { si = s; yaw = y; if (d) dist = d; if (p !== undefined) pitch = p; };
+  function frame() {
+    const m = SR.Bikes.get(styles[si]);
+    const st = m.style;
+    const pi = si % paints.length;
+    spin += 0.05;
+    const eye = [Math.sin(yaw) * dist * Math.cos(pitch), 0.7 + Math.sin(pitch) * dist, Math.cos(yaw) * dist * Math.cos(pitch)];
+    GL.beginView({ x: 0, y: 0, w: 1, h: 1 }, { eye, target: [0, 0.6, 0], fov: 0.9, near: 0.1, far: 100 }, env);
+    GL.draw(floorMesh, null);
+    M.model(mm, 0, 0, 0, 0, 0, 0);
+    const o = { paint: paints[pi][0], paint2: paints[pi][1] };
+    GL.draw(m.body, mm, o);
+    if (showRider) GL.draw(m.rider, mm, o);
+    for (const [z, r, mesh] of [[st.wf, st.rf, m.wheelF], [st.wr, st.rr, m.wheelR]]) {
+      M.model(loc, 0, r, z, 0, -spin, 0);
+      M.mulm(wm, mm, loc);
+      GL.draw(mesh, wm, o);
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+</script>
+</body>
+</html>
