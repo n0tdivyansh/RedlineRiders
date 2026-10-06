@@ -88,6 +88,13 @@
   // showroom: turntable in a neon studio
   let studio = null;
   function buildStudio() {
+    // backdrop first (drawn with GL.backdrop in this order: floor, then the grid on it), then the turntable
+    const bk = new GL.MB();
+    bk.quad([-200, -0.05, -200], [200, -0.05, -200], [200, -0.05, 200], [-200, -0.05, 200], M.rgb('#0c0618'), SR.MAT.EMIT);
+    for (let k = -20; k <= 20; k++) {   // neon grid floor out to the horizon
+      bk.quad([k * 4 - 0.04, -0.02, -80], [k * 4 + 0.04, -0.02, -80], [k * 4 + 0.04, -0.02, 80], [k * 4 - 0.04, -0.02, 80], M.rgb('#6a2aa0'), SR.MAT.EMIT);
+      bk.quad([-80, -0.02, k * 4 - 0.04], [80, -0.02, k * 4 - 0.04], [80, -0.02, k * 4 + 0.04], [-80, -0.02, k * 4 + 0.04], M.rgb('#6a2aa0'), SR.MAT.EMIT);
+    }
     const mb = new GL.MB();
     const R = 3.2, n = 32;
     for (let i = 0; i < n; i++) {
@@ -100,13 +107,7 @@
       const P = (a, r, y) => [Math.cos(a) * r, y, Math.sin(a) * r];
       mb.quad(P(a0, R, 0.001), P(a1, R, 0.001), P(a1, R + 0.12, 0.001), P(a0, R + 0.12, 0.001), M.rgb('#ff3c9e'), SR.MAT.EMIT);
     }
-    // neon grid floor out to the horizon
-    for (let k = -20; k <= 20; k++) {
-      mb.quad([k * 4 - 0.04, -0.02, -80], [k * 4 + 0.04, -0.02, -80], [k * 4 + 0.04, -0.02, 80], [k * 4 - 0.04, -0.02, 80], M.rgb('#6a2aa0'), SR.MAT.EMIT);
-      mb.quad([-80, -0.02, k * 4 - 0.04], [80, -0.02, k * 4 - 0.04], [80, -0.02, k * 4 + 0.04], [-80, -0.02, k * 4 + 0.04], M.rgb('#6a2aa0'), SR.MAT.EMIT);
-    }
-    mb.quad([-200, -0.05, -200], [200, -0.05, -200], [200, -0.05, 200], [-200, -0.05, 200], M.rgb('#0c0618'), SR.MAT.EMIT);
-    return mb.build();
+    return { back: bk.build(), stage: mb.build() };
   }
   const studioEnv = { sunDir: M.norm([0.4, 0.85, -0.35]), sunCol: [0.95, 0.9, 0.95], skyAmb: [0.5, 0.45, 0.65], gndAmb: [0.3, 0.2, 0.35], fogCol: M.rgb('#140a28'), fogNear: 12, fogFar: 60 };
   const mm = M.m4(), loc = M.m4(), wm = M.m4();
@@ -121,7 +122,8 @@
     const f = M.norm(M.sub(target, eye)), rt = M.norm(M.cross(f, [0, 1, 0]));
     const e2 = M.add(eye, M.mul(rt, -cx)), t2 = M.add(target, M.mul(rt, -cx));
     GL.beginView({ x: 0, y: 0, w: 1, h: 1 }, { eye: e2, target: t2, fov: 0.8, near: 0.1, far: 200 }, studioEnv);
-    GL.draw(studio, null);
+    GL.backdrop(studio.back, null);
+    GL.draw(studio.stage, null);
     const bike = SR.bikeById(bikeId), ms = SR.Bikes.get(bike.style), st = ms.style;
     const o = { paint: paints[0], paint2: paints[1], brake: 0 };
     M.model(mm, 0, 0, 0, 0, 0, 0);
@@ -388,8 +390,9 @@
       const eye = T.pos(s, -T.RW - 14); eye[1] += 10;
       const tgt = T.pos(s + 40, 0); tgt[1] += 2;
       GL.beginView({ x: 0, y: 0, w: 1, h: 1 }, { eye, target: tgt, fov: 1.0, near: 0.3, far: 1500 }, T.env);
-      GL.depthWrite(false); M.model(mm, eye[0], eye[1], eye[2], 0, 0, 0); GL.draw(T.sky, mm); GL.depthWrite(true);
-      GL.draw(T.ground, null);
+      M.model(mm, eye[0], eye[1], eye[2], 0, 0, 0);
+      GL.backdrop(T.sky, mm);
+      GL.backdrop(T.ground, null, null, !!T.theme.water);
       T.chunks.forEach((c) => GL.draw(c, null));
     },
     draw(ctx) {

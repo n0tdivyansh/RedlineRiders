@@ -35,19 +35,19 @@
       desc: 'A light naked streetbike. Flicks through chicanes like it weighs nothing.',
     },
     {
-      id: 'furia', brand: 'VELLANTE', name: 'FURIA 999', price: 42000,
+      id: 'furia', brand: 'VELLANTE', name: 'FURIA 999', price: 40000,
       top: 276, acc: 3.6, grip: 22.5, gears: 6, off: 0.46, crash: 72, style: 'sport',
       paint: '#d10a0a', paint2: '#f2f2f2', eng: { base: 38, cyl: 2 },
       desc: 'An Italian superbike with a thundering twin and a paint job to match.',
     },
     {
-      id: 'blitz', brand: 'STAHLBERG', name: 'BLITZ 1000R', price: 88000,
+      id: 'blitz', brand: 'STAHLBERG', name: 'BLITZ 1000R', price: 85000,
       top: 298, acc: 3.2, grip: 23.8, gears: 6, off: 0.5, crash: 76, style: 'sport',
       paint: '#b9bfc8', paint2: '#1f5fd6', eng: { base: 54, cyl: 4 },
       desc: 'German precision at 14,000 rpm. Stable, fast and brutally efficient.',
     },
     {
-      id: 'tengu', brand: 'HAYATO', name: 'TENGU GP', price: 165000,
+      id: 'tengu', brand: 'HAYATO', name: 'TENGU GP', price: 160000,
       top: 322, acc: 2.9, grip: 25.8, gears: 6, off: 0.42, crash: 74, style: 'gp',
       paint: '#19c3b0', paint2: '#f4f4f4', eng: { base: 62, cyl: 4 },
       desc: 'A grand-prix racer with lights bolted on. Corners like it is on rails.',
@@ -130,52 +130,54 @@
     moor: { grass: ['#6a8a4a', '#5e7e42'], shoulder: '#6a7a4a', ground: '#4a6a3a', hill: '#5a6a5a', hillH: 0.9, props: [['stone', 3], ['bush', 4], ['rock', 3], ['tree', 1]], density: 0.5 },
   };
 
-  /* ---------- Cups (8 regions × 4 tracks) ---------- */
+  /* ---------- Cups (8 regions × 4 tracks) ----------
+     aiTop: rivals' target top speed (km/h) · aiGrip: trim on rivals' tyre grip (tuned in dev/balance.html) · bikes: [lo, hi] range of rival bikes, as indices into
+     SR.BIKES sorted by top speed (0 = TERRA 350 ... 7 = ZENITH X) · prize: 1st-place money per race */
   const T = (name, theme, time, weather, seed, len, curvy, hills) => ({ name, theme, time, weather, seed, len, curvy, hills });
   SR.CUPS = [
-    { id: 'usa', name: 'UNITED STATES', short: 'USA', aiTop: 238, prize: 3000, flag: ['#b22234', '#fff', '#3c3b6e'], tracks: [
+    { id: 'usa', name: 'UNITED STATES', short: 'USA', aiTop: 218, aiGrip: 1, bikes: [0, 3], prize: 4500, flag: ['#b22234', '#fff', '#3c3b6e'], tracks: [
       T('NEON STRIP', 'city', 'night', 'clear', 101, 2600, 0.3, 0.2),
       T('SUNSET PALMS', 'coast', 'sunset', 'clear', 102, 2800, 0.4, 0.3),
       T('RED ROCK RUN', 'desert', 'day', 'clear', 103, 3000, 0.35, 0.5),
       T('FOG CITY HILLS', 'city', 'day', 'fog', 104, 2700, 0.5, 0.9),
     ] },
-    { id: 'sam', name: 'SOUTH AMERICA', short: 'S.AM', aiTop: 252, prize: 4500, flag: ['#009c3b', '#ffdf00', '#002776'], tracks: [
+    { id: 'sam', name: 'SOUTH AMERICA', short: 'S.AM', aiTop: 252, aiGrip: 1.08, bikes: [0, 3], prize: 6750, flag: ['#009c3b', '#ffdf00', '#002776'], tracks: [
       T('COPACABANA COAST', 'coast', 'day', 'clear', 201, 2900, 0.45, 0.3),
       T('TANGO DUSK', 'classic', 'dusk', 'clear', 202, 2700, 0.55, 0.3),
       T('INCA SUMMIT', 'alpine', 'day', 'clear', 203, 3100, 0.5, 1.0),
       T('JUNGLE DOWNPOUR', 'jungle', 'day', 'rain', 204, 2800, 0.55, 0.6),
     ] },
-    { id: 'jpn', name: 'JAPAN', short: 'JPN', aiTop: 266, prize: 6500, flag: ['#fff', '#bc002d', '#fff'], tracks: [
+    { id: 'jpn', name: 'JAPAN', short: 'JPN', aiTop: 266, aiGrip: 0.976, bikes: [2, 4], prize: 9750, flag: ['#fff', '#bc002d', '#fff'], tracks: [
       T('SHIBUYA MIDNIGHT', 'city', 'night', 'clear', 301, 2800, 0.55, 0.3),
       T('TEMPLE GARDENS', 'japan', 'day', 'clear', 302, 2900, 0.6, 0.5),
       T('FUJI PASS', 'japan', 'sunset', 'clear', 303, 3200, 0.55, 0.9),
       T('HARBOR RAIN', 'city', 'dusk', 'rain', 304, 2700, 0.6, 0.3),
     ] },
-    { id: 'ger', name: 'GERMANY', short: 'GER', aiTop: 282, prize: 9000, flag: ['#000', '#dd0000', '#ffce00'], tracks: [
+    { id: 'ger', name: 'GERMANY', short: 'GER', aiTop: 282, aiGrip: 1.014, bikes: [3, 4], prize: 13500, flag: ['#000', '#dd0000', '#ffce00'], tracks: [
       T('BRANDENBURG RUN', 'country', 'day', 'clear', 401, 3200, 0.4, 0.3),
       T('MISTY PINES', 'forest', 'day', 'fog', 402, 3000, 0.6, 0.7),
       T('BAVARIAN RAIN', 'country', 'dusk', 'rain', 403, 3100, 0.55, 0.6),
       T('EIFEL RING', 'forest', 'day', 'clear', 404, 3500, 0.7, 1.0),
     ] },
-    { id: 'sca', name: 'SCANDINAVIA', short: 'SCA', aiTop: 298, prize: 12000, flag: ['#006aa7', '#fecc00', '#006aa7'], tracks: [
+    { id: 'sca', name: 'SCANDINAVIA', short: 'SCA', aiTop: 298, aiGrip: 0.982, bikes: [4, 5], prize: 18000, flag: ['#006aa7', '#fecc00', '#006aa7'], tracks: [
       T('FROZEN HARBOR', 'snow', 'day', 'clear', 501, 3000, 0.5, 0.4),
       T('AURORA NIGHTS', 'snow', 'night', 'clear', 502, 3100, 0.55, 0.5),
       T('FJORD DESCENT', 'alpine', 'dusk', 'clear', 503, 3300, 0.6, 1.2),
       T('ARCTIC CIRCLE', 'snow', 'day', 'snow', 504, 3000, 0.6, 0.5),
     ] },
-    { id: 'fra', name: 'FRANCE', short: 'FRA', aiTop: 314, prize: 16000, flag: ['#002395', '#fff', '#ed2939'], tracks: [
+    { id: 'fra', name: 'FRANCE', short: 'FRA', aiTop: 314, aiGrip: 1.1, bikes: [4, 5], prize: 24000, flag: ['#002395', '#fff', '#ed2939'], tracks: [
       T('CITY OF LIGHTS', 'classic', 'night', 'clear', 601, 2900, 0.6, 0.3),
       T('RIVIERA COAST', 'coast', 'day', 'clear', 602, 3200, 0.6, 0.7),
       T('SARTHE SPEEDWAY', 'country', 'sunset', 'clear', 603, 3800, 0.35, 0.3),
       T('ALPINE HAIRPINS', 'alpine', 'day', 'snow', 604, 3100, 0.75, 1.3),
     ] },
-    { id: 'ita', name: 'ITALY', short: 'ITA', aiTop: 330, prize: 21000, flag: ['#009246', '#fff', '#ce2b37'], tracks: [
+    { id: 'ita', name: 'ITALY', short: 'ITA', aiTop: 330, aiGrip: 0.93, bikes: [5, 6], prize: 31500, flag: ['#009246', '#fff', '#ce2b37'], tracks: [
       T('ETERNAL CITY', 'classic', 'day', 'clear', 701, 3000, 0.65, 0.4),
       T('VINEYARD HILLS', 'country', 'sunset', 'clear', 702, 3300, 0.6, 1.0),
       T('ROYAL PARK', 'forest', 'day', 'clear', 703, 3700, 0.45, 0.3),
       T('GRAND CANAL', 'classic', 'dusk', 'fog', 704, 3000, 0.7, 0.3),
     ] },
-    { id: 'gbr', name: 'UNITED KINGDOM', short: 'UK', aiTop: 348, prize: 28000, flag: ['#012169', '#fff', '#c8102e'], tracks: [
+    { id: 'gbr', name: 'UNITED KINGDOM', short: 'UK', aiTop: 348, aiGrip: 1.008, bikes: [5, 7], prize: 42000, flag: ['#012169', '#fff', '#c8102e'], tracks: [
       T('MIDNIGHT THAMES', 'classic', 'night', 'rain', 801, 3000, 0.65, 0.3),
       T('HIGHLAND LOCH', 'moor', 'day', 'fog', 802, 3400, 0.65, 1.0),
       T('OLD AIRFIELD GP', 'country', 'day', 'clear', 803, 3600, 0.5, 0.2),
@@ -193,20 +195,32 @@
   SR.trackById = (id) => SR.TRACKS.find((t) => t.id === id) || SR.TRACKS[0];
 
   /* ---------- Rival drivers ---------- */
+  /* ---------- Rival riding styles ----------
+     mistake: chance per corner of misjudging it · decel: braking the AI plans with (m/s²)
+     lat: share of the tyre grip it trusts · gain: how sharply it holds its line
+     block: covers the inside when a player closes in · draft: tucks into slipstreams */
+  SR.TRAITS = {
+    clean: { name: 'CLEAN', mistake: 0.006, decel: 13, lat: 0.93, gain: 3.2, draft: true },
+    blocker: { name: 'BLOCKER', mistake: 0.007, decel: 13, lat: 0.93, gain: 3.2, draft: true, block: true },
+    late: { name: 'LATE BRAKER', mistake: 0.018, decel: 15.5, lat: 0.97, gain: 3.4, draft: true },
+    rookie: { name: 'ROOKIE', mistake: 0.022, decel: 12, lat: 0.9, gain: 2.4 },
+  };
   SR.RIVALS = [
-    { name: 'VIPER', color: '#d10a0a' }, { name: 'BLAZE', color: '#ff7a1a' }, { name: 'NOVA', color: '#ffc700' },
-    { name: 'JOLT', color: '#5dbb1c' }, { name: 'ORCA', color: '#1f5fd6' }, { name: 'RAVEN', color: '#1a1a24' },
-    { name: 'SABLE', color: '#6b2bd1' }, { name: 'KITE', color: '#19c3b0' }, { name: 'DUKE', color: '#eef0f3' },
-    { name: 'RUSTY', color: '#a0522d' }, { name: 'ZIGGY', color: '#ff3c9e' }, { name: 'CHROME', color: '#b9bfc8' },
-    { name: 'TURBO TINA', color: '#e0e040' }, { name: 'MAX POWER', color: '#304070' }, { name: 'DASH', color: '#8a2be2' },
+    { name: 'VIPER', color: '#d10a0a', trait: 'blocker' }, { name: 'BLAZE', color: '#ff7a1a', trait: 'late' }, { name: 'NOVA', color: '#ffc700', trait: 'clean' },
+    { name: 'JOLT', color: '#5dbb1c', trait: 'rookie' }, { name: 'ORCA', color: '#1f5fd6', trait: 'clean' }, { name: 'RAVEN', color: '#1a1a24', trait: 'blocker' },
+    { name: 'SABLE', color: '#6b2bd1', trait: 'late' }, { name: 'KITE', color: '#19c3b0', trait: 'clean' }, { name: 'DUKE', color: '#eef0f3', trait: 'clean' },
+    { name: 'RUSTY', color: '#a0522d', trait: 'rookie' }, { name: 'ZIGGY', color: '#ff3c9e', trait: 'late' }, { name: 'CHROME', color: '#b9bfc8', trait: 'clean' },
+    { name: 'TURBO TINA', color: '#e0e040', trait: 'late' }, { name: 'MAX POWER', color: '#304070', trait: 'blocker' }, { name: 'DASH', color: '#8a2be2', trait: 'rookie' },
   ];
+  SR.traitOf = (name) => (SR.RIVALS.find((n) => n.name === name) || {}).trait || 'clean';
 
   SR.POINTS = [20, 15, 12, 10, 8, 6, 5, 4, 3, 2, 1, 0];
   SR.PRIZE_MULT = [1, 0.65, 0.45, 0.32, 0.22, 0.15, 0.1, 0.07, 0.05, 0.04, 0.03, 0.02];
+  // mistakes: multiplier on rival corner mistakes · lowside: players can slide off by braking hard in a lean
   SR.DIFF = {
-    easy: { name: 'EASY', pace: 0.9 },
-    normal: { name: 'NORMAL', pace: 1 },
-    hard: { name: 'HARD', pace: 1.06 },
+    easy: { name: 'EASY', pace: 0.9, mistakes: 1.4, lowside: false },
+    normal: { name: 'NORMAL', pace: 1, mistakes: 1, lowside: true },
+    hard: { name: 'HARD', pace: 1.06, mistakes: 0.7, lowside: true },
   };
   SR.RACERS = 12; // riders per race
   SR.LAPS = 3;

@@ -221,6 +221,18 @@ void main() {
     gl.vertexAttribPointer(A.aMat, 1, gl.FLOAT, false, STRIDE * 4, 36);
     gl.drawArrays(gl.TRIANGLES, 0, mesh.count);
   };
+  /** Background layer (sky, horizon ground, studio floor): drawn in painter's order with no depth
+      writes and no vertex snapping. Snapping the far corners of huge triangles makes them jump as
+      the camera turns, and a backdrop never has to hide anything drawn after it (which also rules
+      out z-fighting with terrain that meets it). keepDepth: still write depth (water must hide
+      the terrain below it). */
+  GL.backdrop = function (mesh, model, o, keepDepth) {
+    gl.uniform1f(U.uSnap, 0);
+    if (!keepDepth) gl.depthMask(false);
+    GL.draw(mesh, model, o);
+    gl.depthMask(true);
+    gl.uniform1f(U.uSnap, GL.snap ? 1 : 0);
+  };
   GL.depthWrite = (on) => gl.depthMask(on);
   GL.depthTest = (on) => (on ? gl.enable(gl.DEPTH_TEST) : gl.disable(gl.DEPTH_TEST));
   GL.free = (mesh) => { if (mesh && mesh.buf) gl.deleteBuffer(mesh.buf); };

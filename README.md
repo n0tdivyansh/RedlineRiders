@@ -33,7 +33,9 @@ Menus: arrows + `Enter` (or the mouse click / A button), `Esc` to go back.
 ## Tips
 
 - Hitting the rail or a rival hard throws you off the bike. You get back on after a few seconds, but you lose a lot of time.
-- Brake **before** a turn, not in it. Chevron signs mark the tight ones.
+- Brake **before** a turn, not in it. Chevron signs mark the tight ones. Your tyres only have so much grip: braking hard while leaned over leaves less for turning, and if you keep asking for more the front tucks and you slide off (a **lowside**). The tyres squeal and "FRONT SLIDING" flashes first, so ease off the brake or stand the bike up. Easy difficulty never lowsides you.
+- **Slipstream**: tuck in right behind a rival on a straight and you go faster. Stay in the tow for two seconds and you get a nitro charge back. Then pull out and pass.
+- The rivals are not all the same. Viper, Raven and Max Power will move across to block you; Blaze, Sable, Ziggy and Turbo Tina brake late and sometimes overcook a corner; Jolt, Rusty and Dash are rookies. Watch for a rival running wide - that's your gap.
 - Grass slows most bikes down a lot, but the supermoto doesn't mind.
 - Rain and snow reduce grip.
 - Nitro also pulls a little wheelie: use it on straights.
@@ -46,9 +48,9 @@ Menus: arrows + `Enter` (or the mouse click / A button), `Esc` to go back.
 | Garrison Ironclad | Cruiser | 252 km/h | Starter |
 | Lucenti Terra 350 | Supermoto | 218 km/h | Starter |
 | Wexley Ronin 600 | Naked | 230 km/h | Starter |
-| Vellante Furia 999 | Sport | 276 km/h | $42,000 |
-| Stahlberg Blitz 1000R | Sport | 298 km/h | $88,000 |
-| Hayato Tengu GP | GP racer | 322 km/h | $165,000 |
+| Vellante Furia 999 | Sport | 276 km/h | $40,000 |
+| Stahlberg Blitz 1000R | Sport | 298 km/h | $85,000 |
+| Hayato Tengu GP | GP racer | 322 km/h | $160,000 |
 | Aurelle Zenith X | Hyperbike | 352 km/h | $290,000 |
 
 ## Options

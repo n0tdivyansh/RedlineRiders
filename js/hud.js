@@ -8,6 +8,8 @@
   const HUD = (SR.HUD = {});
   const drops = [];
   for (let i = 0; i < 90; i++) drops.push({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.8 });
+  const lines = [];
+  for (let i = 0; i < 28; i++) lines.push({ a: Math.random() * Math.PI * 2, d: Math.random(), s: 0.7 + Math.random() * 0.6 });
 
   HUD.draw = function (ctx, race, W, H, dt) {
     const vps = race.viewports();
@@ -18,6 +20,7 @@
       ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
       weather(ctx, race, x, y, w, h, dt, cam);
       if (cam.demo) { ctx.restore(); return; }
+      speedLines(ctx, cam.r, x, y, w, h, dt);
       rider(ctx, race, cam.r, x, y, w, h, vps.length > 1);
       ctx.restore();
     });
@@ -55,6 +58,27 @@
         ctx.fillRect(Math.round(x + d.x * w), Math.round(y + d.y * h), s, s);
       }
     }
+  }
+
+  // wind streaks rushing past the screen edges in a slipstream or on nitro
+  function speedLines(ctx, r, x, y, w, h, dt) {
+    if (!r || r.crashT > 0) return;
+    const k = Math.max(r.draft, r.nitroT > 0 ? 1 : 0) * Math.min(1, r.v / 60);
+    if (k < 0.2) return;
+    const cx = x + w / 2, cy = y + h * 0.46, R = Math.hypot(w, h) * 0.55;
+    ctx.strokeStyle = `rgba(235,245,255,${(0.18 + 0.22 * k).toFixed(2)})`;
+    ctx.beginPath();
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      l.d += dt * (1.2 + r.v / 40) * l.s;
+      if (l.d > 1) { l.d = 0.35; l.a = Math.random() * Math.PI * 2; }
+      if (i > lines.length * k) continue;
+      const c = Math.cos(l.a), s = Math.sin(l.a) * 0.6;
+      const r0 = R * l.d, r1 = R * Math.min(1, l.d + 0.12 * k);
+      ctx.moveTo(Math.round(cx + c * r0), Math.round(cy + s * r0));
+      ctx.lineTo(Math.round(cx + c * r1), Math.round(cy + s * r1));
+    }
+    ctx.stroke();
   }
 
   function countdown(ctx, race, W, H) {
@@ -129,6 +153,13 @@
       ctx.fillRect(bx + 1, ny + 1, 6, 6);
     }
     if (r.nitroT > 0) UI2.bar(ctx, nx - 60, ny + 10, 60, 4, r.nitroT / 3.2, '#9af0ff');
+    // slipstream: charge towards the next nitro refill
+    if (r.draft > 0.05 || r.draftT > 0) {
+      const tucked = r.draft > 0.35;
+      F.outline(ctx, 'SLIPSTREAM', nx, ny - 29, tucked && Math.floor(race.t * 6) % 2 ? '#fff' : '#9af0ff', 1, 'right');
+      UI2.bar(ctx, nx - 60, ny - 19, 60, 4, Math.min(1, r.draftT / 2), tucked ? NEON : '#3a6a80');
+    }
+    if (r.slideT > 0 && r.crashT <= 0 && Math.floor(race.t * 12) % 2) F.outline(ctx, '! FRONT SLIDING !', x + w / 2, y + h * 0.62, '#ff4040', 1, 'center');
     // wrong-way style warnings
     if (r.offroad && r.v > 10 && race.phase === 'race' && Math.floor(race.t * 3) % 2) F.outline(ctx, 'OFF ROAD', x + w / 2, y + h - 40, '#ffb020', 1, 'center');
     if (r.ghostT > 0 && r.crashT <= 0) F.outline(ctx, 'GET BACK IN IT!', x + w / 2, y + h * 0.62, GOLD, 1, 'center');

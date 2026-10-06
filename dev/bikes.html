@@ -16,6 +16,7 @@
 <script src="../js/gl.js"></script>
 <script src="../js/data.js"></script>
 <script src="../js/bikes.js"></script>
+<script src="../js/bike-models.js"></script>
 <script>
   const M = SR.M, GL = SR.GL;
   const cv = document.getElementById('gl');
@@ -59,7 +60,7 @@
     }
     requestAnimationFrame(frame);
   }
-  frame();
+  SR.Bikes.load().then(frame); // Blender models when js/bike-models.js is present
 </script>
 </body>
 </html>

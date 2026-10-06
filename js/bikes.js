@@ -373,39 +373,33 @@
   function sportBike(mb, st) {
     const nz = st.wf - 0.28 - (st.hyper ? 0.03 : 0); // front face of the nose
     const dy = st.gp ? -0.03 : 0, kw = st.hyper ? 1.06 : 1;
-    const faceB = 0.73 + dy, faceT = 0.87 + dy, slant = 0.5; // the face leans back
-    const topU = Curve([[nz, faceT], [nz + 0.1, 0.93 + dy], [nz + 0.25, 0.98 + dy], [nz + 0.4, 1.0 + dy], [nz + 0.55, 0.99], [nz + 0.72, 0.95]]);
+    const faceB = 0.74 + dy, faceT = 0.84 + dy, slant = 0.7; // the small front face is raked well back
+    const topU = Curve([[nz, faceT], [nz + 0.1, 0.885 + dy], [nz + 0.25, 0.94 + dy], [nz + 0.4, 0.975 + dy], [nz + 0.55, 0.98], [nz + 0.72, 0.95]]);
     const botU = Curve([[nz, faceB], [nz + 0.1, 0.69 + dy], [nz + 0.25, 0.65], [nz + 0.45, 0.62], [nz + 0.72, 0.6]]);
-    const hwU = Curve([[nz, 0.1 * kw], [nz + 0.1, 0.15 * kw], [nz + 0.22, 0.182 * kw], [nz + 0.4, 0.2 * kw], [nz + 0.58, 0.212 * kw], [nz + 0.72, 0.215 * kw]]);
-    const faceZ = (y) => nz + Math.max(0, y - faceB) * slant;
+    // a pointed beak that flares quickly into the fairing shoulders
+    const hwU = Curve([[nz, 0.05 * kw], [nz + 0.08, 0.115 * kw], [nz + 0.2, 0.168 * kw], [nz + 0.4, 0.2 * kw], [nz + 0.58, 0.212 * kw], [nz + 0.72, 0.215 * kw]]);
+    // slit headlights swept back along the nose sides, rising towards the screen (2 = lamp, 1 = black surround)
+    const lampY = (z) => faceB + 0.035 + (z - nz) * 0.45;
+    const lamp = (x, y, z) => {
+      const u = z - nz;
+      if (u < 0.02 || u > 0.2 || Math.abs(x) < hwU(z) * 0.35) return 0;
+      const d = Math.abs(y - lampY(z)), h = 0.016 * (1 - ((u - 0.02) / 0.18) * 0.5);
+      return d < h ? 2 : d < h + 0.012 ? 1 : 0;
+    };
 
-    /* upper fairing / nose */
+    /* upper fairing / nose; the open front is the ram-air intake */
     part(mb, {
-      z0: nz, z1: nz + 0.72, S: 30, R: 44, top: topU, bot: botU, hw: hwU, n: 2.6, taper: 0.06,
+      z0: nz, z1: nz + 0.72, S: 30, R: 44, top: topU, bot: botU, hw: hwU, n: 1.9, taper: 0.06, // n < 2: creased, diamond-ish section
       warp: (p, u) => { if (u < 0.2) p[2] += Math.max(0, p[1] - faceB) * slant * (1 - u / 0.2); return p; },
       color: (x, y, z) => {
+        const l = lamp(x, y, z);
+        if (l === 2) return [K.head, MAT.HEAD];
+        if (l === 1) return [K.black, LIT];
         if (z > nz + 0.28 && y > topU(z) - 0.03 && Math.abs(x) < 0.16) return [K.dark, LIT]; // under the screen and tank
         return [W, P1];
       },
-      capA: [W, P1],
+      capA: [K.black, LIT],
     });
-    // the face: black surround, twin headlights and a ram-air intake, laid on the slanted front
-    const onFace = (x, y, off) => [x, y, faceZ(y) - off];
-    const shape = (cx, cy, rx, ry, n, rot, off) => {
-      const pts = [];
-      for (let i = 0; i < n; i++) {
-        const t = (i / n) * Math.PI * 2;
-        const ex = Math.cos(t) * rx, ey = Math.sin(t) * ry;
-        pts.push(onFace(cx + ex * Math.cos(rot) - ey * Math.sin(rot), cy + ex * Math.sin(rot) + ey * Math.cos(rot), off));
-      }
-      return pts;
-    };
-    const fy = (faceB + faceT) / 2;
-    sym((s) => {
-      mb.poly(s < 0 ? shape(s * 0.052, fy + 0.008, 0.05, 0.034, 14, s * 0.25, 0.003) : shape(s * 0.052, fy + 0.008, 0.05, 0.034, 14, s * 0.25, 0.003).reverse(), K.black, LIT);
-      mb.poly(shape(s * 0.052, fy + 0.008, 0.041, 0.026, 14, s * 0.25, 0.006), K.head, MAT.HEAD);
-    });
-    mb.quad(onFace(-0.026, faceB + 0.004, 0.004), onFace(0.026, faceB + 0.004, 0.004), onFace(0.018, fy - 0.012, 0.004), onFace(-0.018, fy - 0.012, 0.004), K.black, LIT);
 
     /* lower fairing + belly pan (front edge slants to follow the tire); two-tone livery */
     const z0 = nz + 0.58;
@@ -867,19 +861,73 @@
     return mb;
   }
 
+  /* ============================================================
+     Blender-built bikes: js/bike-models.js (written by blender/export_bikes.py) holds the body
+     and wheels of each style, packed and zlib-compressed. The JS builders above stay as the
+     fallback (no data file, or a browser without DecompressionStream).
+     ============================================================ */
+  const blender = {};
+  function decodeMesh(bytes, h, pal) {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset + h.off);
+    const nv = h.nv, q0 = h.qmin, dq = h.qmax.map((x, i) => (x - q0[i]) / 65535);
+    const P = new Float32Array(nv * 3), N = new Float32Array(nv * 3), K3 = new Float32Array(nv * 3), Mt = new Uint8Array(nv);
+    let o = 0;
+    for (let i = 0; i < nv; i++, o += 6) for (let c = 0; c < 3; c++) P[i * 3 + c] = q0[c] + dv.getUint16(o + c * 2, true) * dq[c];
+    for (let i = 0; i < nv; i++, o += 2) {
+      // octahedral normal (same folding as export_bikes.py octa())
+      let x = dv.getInt8(o) / 127, y = dv.getInt8(o + 1) / 127;
+      const z = 1 - Math.abs(x) - Math.abs(y);
+      if (z < 0) { const ox = x; x = (1 - Math.abs(y)) * (ox >= 0 ? 1 : -1); y = (1 - Math.abs(ox)) * (y >= 0 ? 1 : -1); }
+      const l = Math.hypot(x, y, z) || 1;
+      N[i * 3] = x / l; N[i * 3 + 1] = y / l; N[i * 3 + 2] = z / l;
+    }
+    const palAt = o, aoAt = o + nv;
+    o += nv * 2;
+    while (o % 4) o++;
+    for (let i = 0; i < nv; i++) {
+      const [m, col] = pal[dv.getUint8(palAt + i)];
+      // baked occlusion darkens creases; lights (EMIT, BRAKE, HEAD) glow regardless
+      const ao = m === MAT.EMIT || m === MAT.BRAKE || m === MAT.HEAD ? 1 : 0.3 + 0.7 * (dv.getUint8(aoAt + i) / 255);
+      Mt[i] = m; K3[i * 3] = col[0] * ao; K3[i * 3 + 1] = col[1] * ao; K3[i * 3 + 2] = col[2] * ao;
+    }
+    const mb = new MB(), v = mb.v;
+    for (let k = 0; k < h.ni; k++) {
+      const i = h.wide ? dv.getUint32(o + k * 4, true) : dv.getUint16(o + k * 2, true);
+      v.push(P[i * 3], P[i * 3 + 1], P[i * 3 + 2], N[i * 3], N[i * 3 + 1], N[i * 3 + 2], K3[i * 3], K3[i * 3 + 1], K3[i * 3 + 2], Mt[i]);
+    }
+    return mb.build();
+  }
+
   const cache = {};
   SR.Bikes = {
     STYLES,
     POSES,
+    /** Decode the Blender models (call once after GL.init, before any Bikes.get) */
+    async load() {
+      const B = SR.BIKE_MODELS;
+      if (!B || typeof DecompressionStream !== 'function') return;
+      try {
+        const bin = Uint8Array.from(atob(B.data), (c) => c.charCodeAt(0));
+        const raw = new Uint8Array(await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());
+        const pal = B.palette.map(([m, hex]) => [m, C(hex)]);
+        for (const id in B.bikes) {
+          const b = B.bikes[id];
+          blender[id] = { body: decodeMesh(raw, b.body, pal), wheelF: decodeMesh(raw, b.wheelF, pal), wheelR: decodeMesh(raw, b.wheelR, pal) };
+          delete cache[id];
+        }
+      } catch (e) {
+        console.warn('Blender bike models not loaded, using the built-in ones', e);
+      }
+    },
     get(styleId) {
       if (cache[styleId]) return cache[styleId];
-      const st = STYLES[styleId];
+      const st = STYLES[styleId], bl = blender[styleId];
       const m = {
         style: st,
-        body: buildBike(styleId).build(),
+        body: bl ? bl.body : buildBike(styleId).build(),
         rider: buildRider(st.pose).build(),
-        wheelF: buildWheel(st.rf, st.tf, st.rim, true).build(),
-        wheelR: buildWheel(st.rr, st.tr, st.rim, false).build(),
+        wheelF: bl ? bl.wheelF : buildWheel(st.rf, st.tf, st.rim, true).build(),
+        wheelR: bl ? bl.wheelR : buildWheel(st.rr, st.tr, st.rim, false).build(),
       };
       cache[styleId] = m;
       return m;

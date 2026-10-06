@@ -86,6 +86,7 @@
       case 'nitro': noise(0.9, 0.35, 'bandpass', 600, 3000, t, 2); tone('sawtooth', 120, 420, 0.8, 0.08); break;
       case 'crash': noise(0.7, 0.6, 'lowpass', 2400, 200, t, 1); tone('square', 90, 40, 0.4, 0.2); noise(0.25, 0.3, 'highpass', 4000, 6000, t + 0.05, 1); break;
       case 'bump': noise(0.15, 0.35, 'lowpass', 900, 200, t, 1); break;
+      case 'draft': noise(0.45, 0.25, 'bandpass', 500, 2600, t, 2); tone('p25', 1175, 1568, 0.12, 0.08, t + 0.2); break;
       case 'scrape': noise(0.4, 0.25, 'bandpass', 2600, 1800, t, 3); break;
       case 'shift': noise(0.04, 0.12, 'highpass', 3000, 3000, t, 1); break;
       case 'win': [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone('p25', f, f, i === 6 ? 0.5 : 0.12, 0.14, t + i * 0.11)); break;

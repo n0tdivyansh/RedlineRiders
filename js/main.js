@@ -30,7 +30,7 @@
     SR.Audio.setVolumes(o.music, o.sfx);
   };
 
-  function boot() {
+  async function boot() {
     SR.Save.load();
     if (!SR.GL.init(glc)) {
       document.body.innerHTML = '<p style="color:#fff;font:16px monospace;padding:2em">Redline Riders needs WebGL. Please use a recent Chrome, Edge, Firefox or Safari.</p>';
@@ -42,6 +42,7 @@
     addEventListener('resize', fit);
     addEventListener('beforeunload', () => SR.Save.save());
     document.addEventListener('visibilitychange', () => { if (document.hidden) SR.Save.save(); });
+    await SR.Bikes.load();
     SR.Screens.go('boot');
     let last = performance.now();
     function frame(now) {

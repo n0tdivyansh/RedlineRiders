@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Balance and racing checks (dev)</title>
+<style>
+  html, body { margin: 0; background: #111; color: #ccc; font: 12px monospace; }
+  body { padding: 12px; }
+  .pass { color: #5d5; } .fail { color: #f55; }
+  div { white-space: pre; }
+  canvas { display: none; }
+</style>
+</head>
+<body>
+<p>Runs races headless (no rendering) and checks the racing rules. <a href="?run">Run</a> · results also in <code>window.results</code>.</p>
+<div id="out"></div>
+<canvas id="gl"></canvas>
+<script>
+  // load the game scripts in order, never from the browser cache (this page is for checking fresh edits)
+  const bust = Date.now();
+  for (const f of ['core', 'font', 'gl', 'data', 'bikes', 'props', 'track', 'audio', 'input', 'save', 'race', 'ai']) {
+    document.write(`<script src="../js/${f}.js?v=${bust}"><\/script>`);
+  }
+</script>
+<script>
+  const M = SR.M;
+  SR.GL.init(document.getElementById('gl'));
+  // silent audio: races create engine/skid/ambience voices
+  const mute = () => ({ set() {}, stop() {} });
+  Object.assign(SR.Audio, { engine: mute, skid: mute, ambience: mute, sfx() {}, music() {} });
+
+  const out = document.getElementById('out');
+  const log = (s, cls) => { const d = document.createElement('div'); d.textContent = s; if (cls) d.className = cls; out.appendChild(d); };
+
+  // The bike and upgrade level an average player (finishing about 2nd) can afford at each cup.
+  // The 'ladder' check keeps this in step with SR.CUPS prizes and SR.BIKES prices.
+  const LADDER = [
+    { bike: 'vx400', up: 0 }, { bike: 'vx400', up: 1 }, { bike: 'furia', up: 0 }, { bike: 'furia', up: 1 },
+    { bike: 'blitz', up: 1 }, { bike: 'blitz', up: 2 }, { bike: 'tengu', up: 1 }, { bike: 'tengu', up: 2 },
+  ];
+  const ups = (n) => ({ engine: n, exhaust: n, tires: n, gearbox: n });
+
+  /** One race to the player's flag. o: {track, bike, up, pace, diff, rubber, seed, laps, rivals, ctrl, max} */
+  function sim(o) {
+    const def = SR.trackById(o.track);
+    const rivals = o.rivals || SR.Race.buildField(def.cup, 11, o.diff || 'normal', o.seed || 7);
+    const r = SR.Race.create({
+      trackDef: def, laps: o.laps || 3, mode: 'quick', diff: o.diff || 'normal', trans: 'auto', rivals,
+      locals: [{ bikeId: o.bike, up: o.up || {}, paints: [M.rgb('#fff'), M.rgb('#000')], name: 'YOU', slot: 0 }],
+    });
+    r.rubber = !!o.rubber;
+    const L = r.locals[0];
+    L.ctrl = o.ctrl || new SR.Race.AIController({ pace: o.pace || 1, lane: 0, rng: M.rng(3), mistake: 0, trait: o.trait });
+    L.ctrl.kind = 'local';
+    // an AI-driven stand-in brakes like a rival, not like a player who has learned the friction circle;
+    // it measures pace only (slide-offs have their own check)
+    if (!o.ctrl) L.bench = true;
+    const st = { wall: 0, low: 0, you: 0, youLow: 0, draft: 0, refill: 0 };
+    const crash = r.crashRider.bind(r);
+    r.crashRider = (q, side, kind) => {
+      if (!(q.crashT > 0 || q.ghostT > 0)) {
+        if (q.local) { st.you++; if (kind === 'lowside') st.youLow++; } else if (kind === 'lowside') st.low++; else st.wall++;
+      }
+      return crash(q, side, kind);
+    };
+    let g = 0;
+    while (!L.finished && g++ < (o.max || 4000)) {
+      const n0 = r.riders.map((q) => q.nitroN);
+      r.update(0.1);
+      r.riders.forEach((q, i) => { if (q.nitroN > n0[i]) st.refill++; if (q.draft > 0.35) st.draft += 0.1 / r.riders.length; });
+    }
+    const others = r.riders.filter((q) => q !== L).sort((a, b) => b.d - a.d);
+    st.place = L.place;
+    st.margin = L.place === 1 && others.length ? (L.d - others[0].d) / Math.max(others[0].v, 1) : 0;
+    st.race = r;
+    return st;
+  }
+
+  const checks = [];
+  const check = (name, fn) => checks.push({ name, fn });
+
+  check('same seed, same race', () => {
+    const a = JSON.stringify(sim({ track: 'usa2', bike: 'furia', laps: 1 }).race.snapshot());
+    const b = JSON.stringify(sim({ track: 'usa2', bike: 'furia', laps: 1 }).race.snapshot());
+    return [a === b, 'snapshots ' + (a === b ? 'match' : 'differ')];
+  });
+
+  check('slipstream closes a gap', () => {
+    // two identical riders at speed on the long start straight, the second 12 m back:
+    // on the leader's line vs 3 m off it
+    const run = (dx) => {
+      const rivals = [0, 1].map(() => ({ name: 'KITE', bikeId: 'blitz', up: {}, paints: [M.rgb('#fff'), M.rgb('#000')], pace: 1 }));
+      const r = SR.Race.create({ trackDef: SR.trackById('fra3'), laps: 3, mode: 'quick', diff: 'normal', trans: 'auto', rivals, locals: [] });
+      r.phase = 'race';
+      const [a, b] = r.riders;
+      a.d = 40; b.d = 28; a.x = 0; b.x = dx; a.v = b.v = 60; a.gear = b.gear = 5;
+      // full throttle, holding a fixed line (same steering law as the AI, without its overtaking)
+      const hold = (lane) => ({
+        kind: 'ai',
+        get(q, race) {
+          const w = race.track.curvAt(q.s) * q.v + 3.2 * (Math.atan2(lane - q.x, 10 + q.v * 0.35) - q.hr);
+          const lean = Math.atan((w * q.v) / 9.81);
+          return { steer: M.clamp(lean / Math.atan(q.st.lat / 9.81), -1, 1), throttle: 1, brake: 0, nitro: false, ai: true };
+        },
+      });
+      a.ctrl = hold(0); b.ctrl = hold(dx);
+      for (let i = 0; i < 30; i++) r.update(0.1);
+      return a.d - b.d;
+    };
+    const tucked = run(0), wide = run(3);
+    return [tucked < wide - 2, `gap after 3 s: ${tucked.toFixed(1)} m tucked in, ${wide.toFixed(1)} m out of the tow`];
+  });
+
+  check('turning: the bike rolls into a lean over time, quicker at low speed', () => {
+    const rollIn = (v) => {
+      const r = sim({ track: 'fra3', bike: 'blitz', laps: 1, max: 1, rivals: [] }).race;
+      const L = r.locals[0];
+      r.phase = 'race';
+      L.d = 20; L.x = 0; L.hr = 0; L.lean = 0; L.v = v; L.gear = 3; L.bench = true;
+      L.ctrl = { kind: 'local', get: () => ({ steer: 1, throttle: 0.3, brake: 0, nitro: false }) };
+      const target = 0.8 * Math.atan(L.st.lat / 9.81);
+      let t = 0;
+      while (L.lean < target && t < 3) { r.update(1 / 60); t += 1 / 60; }
+      return t;
+    };
+    const slow = rollIn(15), fast = rollIn(70);
+    return [slow < fast && fast > 0.3 && fast < 0.9, `to 80% lean: ${slow.toFixed(2)} s at 54 km/h, ${fast.toFixed(2)} s at 252 km/h`];
+  });
+
+  check('player slides off braking hard in a lean (normal), stays up on easy', () => {
+    const lean = (diff) => {
+      const r = sim({ track: 'jpn3', bike: 'blitz', diff, laps: 1, max: 1, rivals: [] }).race;
+      const L = r.locals[0];
+      r.phase = 'race';
+      // arrive fast at the tightest corner, grab the brake and hold full lean
+      let at = 0, k = 0;
+      for (let s = 0; s < r.track.L; s += 2) { const c = Math.abs(r.track.curvAt(s)); if (c > k) { k = c; at = s; } }
+      const dir = Math.sign(r.track.curvAt(at));
+      L.d = at - 30; L.v = 42; L.gear = 4; L.crashT = 0; L.ghostT = 0; L.bench = false;
+      L.ctrl = { kind: 'local', get: () => ({ steer: dir, throttle: 0, brake: 1, nitro: false }) };
+      let low = false;
+      const crash = r.crashRider.bind(r);
+      r.crashRider = (q, side, kind) => { if (q === L && kind === 'lowside') low = true; return crash(q, side, kind); };
+      for (let i = 0; i < 30 && !low; i++) r.update(0.1);
+      return low;
+    };
+    const n = lean('normal'), e = lean('easy');
+    return [n && !e, `normal: ${n ? 'lowside' : 'stayed up'} · easy: ${e ? 'lowside' : 'stayed up'}`];
+  });
+
+  check('rivals crash 0.5-1.5 times a race', () => {
+    let crashes = 0, races = 0, low = 0;
+    for (const c of SR.CUPS) for (const t of [c.tracks[0], c.tracks[2]]) {
+      const L = LADDER[SR.CUPS.indexOf(c)];
+      const s = sim({ track: t.id, bike: L.bike, up: ups(L.up), rubber: true });
+      crashes += s.wall + s.low; low += s.low; races++;
+    }
+    const avg = crashes / races;
+    return [avg >= 0.5 && avg <= 1.5, `${avg.toFixed(2)} per race (${(low / races).toFixed(2)} lowsides) over ${races} races`];
+  });
+
+  // Pace, not finishing place: starting from the back of the grid, traffic decides places.
+  // A sharp rider (late-braker line, no mistakes) on the expected bike should lap 1-4% quicker
+  // than the fastest rival in every cup - the same edge all the way through, no easy or brutal cups.
+  check('difficulty: the expected bike, ridden well, is 1-4% quicker than the fastest rival in every cup', () => {
+    const rows = [];
+    let ok = true;
+    const gap = (s) => {
+      const me = s.race.locals[0];
+      const rival = Math.min(...s.race.riders.filter((q) => q !== me && q.bestLap).map((q) => q.bestLap));
+      return (me.bestLap / rival - 1) * 100;
+    };
+    SR.CUPS.forEach((c, ci) => {
+      const L = LADDER[ci];
+      const runs = c.tracks.map((t) => sim({ track: t.id, bike: L.bike, up: ups(L.up), trait: 'late' }));
+      const g = runs.reduce((a, s) => a + gap(s), 0) / runs.length;
+      if (g > -1 || g < -4) ok = false;
+      rows.push(`${c.short.padEnd(5)} ${(L.bike + '+' + L.up).padEnd(8)} ${g.toFixed(1)}% vs fastest rival  finishes ${runs.map((s) => 'P' + s.place).join(' ')}`);
+    });
+    return [ok, rows.join('\n    ')];
+  });
+
+  check('ladder: the expected bike is affordable for a player averaging 2nd', () => {
+    let bank = 0, ok = true;
+    const rows = [];
+    const cost = (u) => { let c = 0; for (const up of SR.UPGRADES) if (['engine', 'exhaust', 'tires', 'gearbox'].includes(up.id)) for (let l = 0; l < u; l++) c += SR.upCost(up, l); return c; };
+    SR.CUPS.forEach((c, ci) => {
+      const L = LADDER[ci], prev = LADDER[ci - 1];
+      if (!prev || prev.bike !== L.bike) bank -= SR.bikeById(L.bike).price + cost(L.up);
+      else bank -= cost(L.up) - cost(prev.up);
+      if (bank < 0) ok = false;
+      rows.push(`${c.short.padEnd(5)} after buying ${(L.bike + '+' + L.up).padEnd(8)} bank $${Math.round(bank)}`);
+      bank += 4 * c.prize * SR.PRIZE_MULT[1] + c.prize * 2; // four 2nd places + the 2nd-place cup bonus
+    });
+    return [ok, rows.join('\n    ')];
+  });
+
+  window.results = [];
+  window.runChecks = (only) => {
+    out.textContent = '';
+    window.results = [];
+    for (const c of checks) {
+      if (only && !c.name.includes(only)) continue;
+      const t0 = performance.now();
+      let pass = false, info = '';
+      try { [pass, info] = c.fn(); } catch (e) { info = e.stack; }
+      window.results.push({ name: c.name, pass, info });
+      log(`${pass ? 'PASS' : 'FAIL'}  ${c.name}  (${((performance.now() - t0) / 1000).toFixed(1)} s)\n    ${info}`, pass ? 'pass' : 'fail');
+    }
+    return window.results.map((r) => `${r.pass ? 'PASS' : 'FAIL'} ${r.name}\n    ${r.info}`).join('\n');
+  };
+  window.sim = sim;
+  window.LADDER = LADDER;
+  if (location.search.includes('run')) setTimeout(() => runChecks(), 50);
+</script>
+</body>
+</html>
